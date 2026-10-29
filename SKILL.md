@@ -69,7 +69,7 @@ allowed-tools: Bash(${CLAUDE_SKILL_DIR}/scripts/run.sh *) Bash(xdg-open *)
 ## Что получается в папке vNN
 
 - `master_-14LUFS.wav` — для стримингов (Spotify/YouTube/Apple нормализуют к ~−14).
-- `master_-11LUFS.wav` и `.mp3` (320 kbps) — громче, для Telegram и соцсетей без нормализации.
+- `master_-11LUFS.wav` и `.m4a` (AAC 256 kbps) — громче, для Telegram и соцсетей без нормализации.
 - `premaster.wav` — после чистки и шины, до лимитера (если пользователь захочет домастерить в DAW).
 - `ab.html` + `ab/` — A/B-сравнение, `spectrum.png` — спектр до/после/референс.
 - `report.md` / `report.json` — замеры и все использованные настройки (воспроизводимо).

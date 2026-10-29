@@ -49,7 +49,7 @@ $R run --help                            # все флаги
 | Файл | Зачем |
 |---|---|
 | `master_-14LUFS.wav` | стриминги (Spotify, YouTube, Apple) |
-| `master_-11LUFS.wav`, `.mp3` | Telegram, соцсети |
+| `master_-11LUFS.wav`, `.m4a` | Telegram, соцсети |
 | `premaster.wav` | до лимитера — если захотите доделать в DAW |
 | `ab.html` | A/B оригинал ↔ мастер на одинаковой громкости |
 | `spectrum.png` | спектр до/после/референс |

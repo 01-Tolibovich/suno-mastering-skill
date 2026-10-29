@@ -56,7 +56,7 @@ DEFAULTS = {
     "split": "none",          # none | vocals | 4
     "sep_model": None,
     "exclude": None,
-    "mp3": True,
+    "m4a": True,
 }
 STRENGTH = {"light": 0.6, "normal": 1.0, "strong": 1.6}
 
@@ -614,8 +614,8 @@ def cmd_run(args) -> None:
         v = getattr(args, k, None)
         if v is not None:
             cfg[k] = v
-    if args.no_mp3:
-        cfg["mp3"] = False
+    if args.no_m4a:
+        cfg["m4a"] = False
     k = STRENGTH[cfg["preset"]]
 
     src = Path(args.input).expanduser().resolve()
@@ -758,26 +758,27 @@ def cmd_run(args) -> None:
         report["masters"][name] = st
         finals.append((name, y, tgt))
 
-    # MP3 для Telegram — из самой громкой версии
-    if cfg["mp3"] and shutil.which("ffmpeg"):
+    # M4A (AAC) для Telegram — из самой громкой версии
+    if cfg["m4a"] and shutil.which("ffmpeg"):
         name, _, tgt = max(finals, key=lambda f: f[2])
-        mp3 = out / name.replace(".wav", ".mp3")
-        src_wav, ceil_mp3 = out / name, cfg["ceiling"]
+        m4a = out / name.replace(".wav", ".m4a")
+        src_wav, ceil_m4a = out / name, cfg["ceiling"]
         with tempfile.TemporaryDirectory() as td:
             for attempt in range(3):
-                run_cmd(["ffmpeg", "-v", "error", "-y", "-i", str(src_wav), "-c:a", "libmp3lame", "-b:a", "320k", str(mp3)])
-                chk = ffmpeg_ebur128(mp3)
+                run_cmd(["ffmpeg", "-v", "error", "-y", "-i", str(src_wav), "-c:a", "aac", "-b:a", "256k",
+                         "-movflags", "+faststart", str(m4a)])
+                chk = ffmpeg_ebur128(m4a)
                 over = chk.get("true_peak", -99) - cfg["ceiling"]
                 if over <= 0.3 or attempt == 2:
                     break
-                # кодер MP3 добавил пиков — делаем для MP3 отдельную версию с более низким потолком
-                ceil_mp3 -= over + 0.1
-                y_mp3, _ = finalize(mix, sr, tgt, ceil_mp3, cfg["release"])
-                src_wav = Path(td) / "for_mp3.wav"
-                save(src_wav, y_mp3, sr)
-        report["mp3"] = {"file": mp3.name, "ceiling_used": round(ceil_mp3, 2), **chk}
+                # кодер AAC добавил пиков — делаем для M4A отдельную версию с более низким потолком
+                ceil_m4a -= over + 0.1
+                y_m4a, _ = finalize(mix, sr, tgt, ceil_m4a, cfg["release"])
+                src_wav = Path(td) / "for_m4a.wav"
+                save(src_wav, y_m4a, sr)
+        report["m4a"] = {"file": m4a.name, "ceiling_used": round(ceil_m4a, 2), **chk}
         if chk.get("true_peak", -99) > -0.3:
-            report["warnings"].append("MP3 после кодирования подходит к 0 dBTP — поставь --ceiling -1.5.")
+            report["warnings"].append("M4A после кодирования подходит к 0 dBTP — поставь --ceiling -1.5.")
 
     # 6. A/B: оригинал и мастер на одинаковой громкости
     main_name, main_y, _ = min(finals, key=lambda f: abs(f[2] + 14))
@@ -827,9 +828,9 @@ def cmd_run(args) -> None:
         tp_show = st.get("ffmpeg_check", {}).get("true_peak", st["true_peak"])
         md.append(f"- `{n}` — {st['lufs']} LUFS, TP {tp_show} dBTP, лимитер: макс {st['gr_max_db']} dB / "
                   f"в среднем {st['gr_mean_db']} dB")
-    if "mp3" in report:
-        m = report["mp3"]
-        md.append(f"- `{m['file']}` — {fmt(m.get('lufs'))} LUFS, TP {fmt(m.get('true_peak'))} dBTP (320 kbps, для Telegram)")
+    if "m4a" in report:
+        m = report["m4a"]
+        md.append(f"- `{m['file']}` — {fmt(m.get('lufs'))} LUFS, TP {fmt(m.get('true_peak'))} dBTP (AAC 256 kbps, для Telegram)")
     md += ["- `premaster.wav` — после чистки и шины, до лимитера", "- `ab.html` — A/B-сравнение, `spectrum.png` — спектр"]
     if report["warnings"]:
         md += ["", "## Предупреждения", ""] + [f"- {w}" for w in report["warnings"]]
@@ -876,7 +877,7 @@ def main() -> None:
     r.add_argument("--sep-model", help="модель audio-separator")
     r.add_argument("--exclude", help="regex: какие файлы в папке стемов пропустить")
     r.add_argument("--out", help="папка результатов (по умолчанию <трек>_master/)")
-    r.add_argument("--no-mp3", action="store_true", help="не делать MP3")
+    r.add_argument("--no-m4a", action="store_true", help="не делать M4A")
     r.add_argument("--use", help="загрузить пресет (имя или путь к JSON)")
     r.add_argument("--save-preset", help="сохранить итоговые настройки как пресет")
 
