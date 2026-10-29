@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Запускает master.py в окружении скилла.
-VENV="${MASTER_VENV:-$HOME/.local/share/master-skill/venv}"
-HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
-if [[ ! -x "$VENV/bin/python" ]]; then
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+source "$HERE/_common.sh"
+if [[ ! -x "$VENV_PY" ]]; then
   echo "Окружение не установлено. Запусти: bash $HERE/setup.sh" >&2
   exit 1
 fi
-exec "$VENV/bin/python" "$HERE/master.py" "$@"
+exec "$VENV_PY" "$HERE/master.py" "$@"

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-master.py — чистка и мастеринг AI-треков (Suno/Udio) на CPU.
+master.py — чистка и мастеринг AI-треков (Suno/Udio). Работает на любом CPU; видеокарта нужна только для ускорения --split.
 
 Команды:
   analyze INPUT [--ref REF]      — замеры: LUFS, True Peak, LRA, баланс частот, признаки MP3/артефактов
   run     INPUT [опции]          — чистка → (сведение стемов) → мастеринг → отчёт и A/B-страница
+  open    FILE                   — открыть файл (ab.html, spectrum.png) в браузере/просмотрщике системы
 
 INPUT — либо полный трек (WAV/FLAC/AIFF), либо папка со стемами.
 """
@@ -20,6 +21,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import webbrowser
 from pathlib import Path
 
 import numpy as np
@@ -384,9 +386,10 @@ def load_stems(files: list[Path]) -> tuple[list[tuple[str, np.ndarray]], int]:
 
 
 def separator_exe() -> str:
-    exe = Path(sys.executable).parent / "audio-separator"
-    if exe.exists():
-        return str(exe)
+    for name in ("audio-separator", "audio-separator.exe"):
+        exe = Path(sys.executable).parent / name
+        if exe.exists():
+            return str(exe)
     w = shutil.which("audio-separator")
     if not w:
         raise SystemExit("audio-separator не установлен. Запусти: scripts/setup.sh --with-separator")
@@ -394,13 +397,13 @@ def separator_exe() -> str:
 
 
 def separate(path: Path, mode: str, outdir: Path, model: str | None) -> list[Path]:
-    """Разделение через audio-separator (CPU). Возвращает список стемов."""
+    """Разделение через audio-separator (CUDA / Apple Silicon / CPU). Возвращает список стемов."""
     exe = separator_exe()
     default = {"vocals": "UVR-MDX-NET-Inst_HQ_3.onnx", "4": "htdemucs.yaml"}[mode]
     outdir.mkdir(parents=True, exist_ok=True)
     cmd = [exe, str(path), "--model_filename", model or default,
            "--output_dir", str(outdir), "--output_format", "WAV"]
-    log(f"• Разделение на стемы ({model or default}, CPU — может занять несколько минут)…")
+    log(f"• Разделение на стемы ({model or default}; без видеокарты — может занять несколько минут)…")
     t = time.time()
     p = subprocess.run(cmd, capture_output=True, text=True)
     if p.returncode != 0:
@@ -845,14 +848,29 @@ def cmd_run(args) -> None:
     log(f"\nПапка: {out}")
 
 
+def cmd_open(args) -> None:
+    p = Path(args.file).expanduser().resolve()
+    if not p.exists():
+        raise SystemExit(f"Нет файла: {p}")
+    if not webbrowser.open(p.as_uri()):
+        log(f"Не удалось открыть автоматически — открой вручную: {p}")
+
+
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Мастеринг AI-треков (Suno/Udio) на CPU")
+    # консоль Windows по умолчанию не в UTF-8 — без этого падает вывод кириллицы и значков
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+    ap = argparse.ArgumentParser(description="Мастеринг AI-треков (Suno/Udio)")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     a = sub.add_parser("analyze", help="замеры трека или папки стемов (JSON)")
     a.add_argument("input")
     a.add_argument("--ref")
     a.add_argument("--exclude", help="regex: какие файлы в папке стемов пропустить")
+
+    o = sub.add_parser("open", help="открыть ab.html / spectrum.png в системе")
+    o.add_argument("file")
 
     r = sub.add_parser("run", help="чистка и мастеринг")
     r.add_argument("input", help="WAV/FLAC или папка со стемами")
@@ -873,7 +891,7 @@ def main() -> None:
     r.add_argument("--deharsh", type=float, help="макс. подавление резкости в миксе, dB (по пресету: 3.5)")
     r.add_argument("--deess", type=float, help="макс. де-эссинг вокала, dB (по пресету: 6)")
     r.add_argument("--vocal-gain", type=float, help="громкость вокала, dB (только стемы)")
-    r.add_argument("--split", choices=["none", "vocals", "4"], help="разделить полный WAV на стемы (медленно на CPU)")
+    r.add_argument("--split", choices=["none", "vocals", "4"], help="разделить полный WAV на стемы (без видеокарты — медленно)")
     r.add_argument("--sep-model", help="модель audio-separator")
     r.add_argument("--exclude", help="regex: какие файлы в папке стемов пропустить")
     r.add_argument("--out", help="папка результатов (по умолчанию <трек>_master/)")
@@ -890,6 +908,8 @@ def main() -> None:
     args = ap.parse_args(argv)
     if args.cmd == "analyze":
         cmd_analyze(args)
+    elif args.cmd == "open":
+        cmd_open(args)
     else:
         # имена флагов → ключи cfg
         for src_name, dst in (("ref_mix", "ref_mix"), ("mono_below", "mono_below"), ("vocal_gain", "vocal_gain"),
