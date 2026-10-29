@@ -1,0 +1,22 @@
+{
+  "preset": "strong",
+  "targets": [
+    -14.0,
+    -12.0
+  ],
+  "ceiling": -1.0,
+  "release": 150.0,
+  "glue": 1.5,
+  "sat": 0.12,
+  "width": 1.0,
+  "mono_below": 120.0,
+  "low": 0.0,
+  "mud": null,
+  "presence": 0.0,
+  "air": 0.0,
+  "deharsh": null,
+  "deess": null,
+  "vocal_gain": 0.0,
+  "ref_mix": 1.0,
+  "m4a": true
+}
